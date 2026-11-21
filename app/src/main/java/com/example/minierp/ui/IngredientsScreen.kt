@@ -69,7 +69,7 @@ fun IngredientsScreen(revision: Int, onChanged: () -> Unit) {
 
     Scaffold(
         floatingActionButton = {
-            FloatingActionButton(onClick = { adding = true }) {
+            FloatingActionButton(onClick = { adding = true }, shape = MaterialTheme.shapes.medium) {
                 Icon(Icons.Filled.Add, contentDescription = "إضافة مكون")
             }
         }
@@ -79,11 +79,9 @@ fun IngredientsScreen(revision: Int, onChanged: () -> Unit) {
             verticalArrangement = Arrangement.spacedBy(8.dp)
         ) {
             item {
-                Text(
-                    "أسعار المكونات لكل جرام — للعلم فقط، لا تؤثر على سعر المنتج",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    modifier = Modifier.padding(bottom = 4.dp)
+                ModernHeader(
+                    title = "المكونات",
+                    subtitle = "أسعار الجرام للعلم فقط — لا تؤثر على سعر المنتج"
                 )
             }
             item {

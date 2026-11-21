@@ -87,7 +87,7 @@ fun ProductsScreen(revision: Int, onChanged: () -> Unit) {
 
     Scaffold(
         floatingActionButton = {
-            FloatingActionButton(onClick = { adding = true }) {
+            FloatingActionButton(onClick = { adding = true }, shape = MaterialTheme.shapes.medium) {
                 Icon(Icons.Filled.Add, contentDescription = "منتج جديد")
             }
         }
@@ -97,11 +97,9 @@ fun ProductsScreen(revision: Int, onChanged: () -> Unit) {
             verticalArrangement = Arrangement.spacedBy(8.dp)
         ) {
             item {
-                Text(
-                    "لكل حجم سعر مستقل يحدده المستخدم — السعر لا يُحسب من تكلفة المكونات",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    modifier = Modifier.padding(bottom = 4.dp)
+                ModernHeader(
+                    title = "المنتجات",
+                    subtitle = "لكل حجم سعر مستقل تضعه أنت — مش من تكلفة المكونات"
                 )
             }
             item {

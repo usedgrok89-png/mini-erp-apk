@@ -4,6 +4,8 @@ import android.content.Context
 import android.database.Cursor
 import android.database.sqlite.SQLiteDatabase
 import android.database.sqlite.SQLiteOpenHelper
+import org.json.JSONArray
+import org.json.JSONObject
 
 /**
  * كل البيانات محلية على الجهاز — بدون سيرفر أو إنترنت.
@@ -360,6 +362,78 @@ object DB {
         try {
             d.execSQL("DELETE FROM invoice_items WHERE invoice_id=?", bind(id))
             d.execSQL("DELETE FROM invoices WHERE id=?", bind(id))
+            d.setTransactionSuccessful()
+        } finally {
+            d.endTransaction()
+        }
+    }
+
+    // ---------------------------------------------------------------- backup
+
+    /** تصدير كل البيانات كنص JSON (بدون مكتبات خارجية — org.json مدمج في أندرويد). */
+    fun exportJson(): String {
+        val root = JSONObject()
+        root.put("version", 1)
+        root.put("exportedAt", System.currentTimeMillis())
+
+        val settings = JSONObject()
+        db().rawQuery("SELECT key,value FROM settings", null).use { c ->
+            while (c.moveToNext()) settings.put(c.s("key"), c.s("value"))
+        }
+        root.put("settings", settings)
+
+        listOf(
+            "ingredients", "formulas", "formula_items", "products",
+            "product_sizes", "invoices", "invoice_items"
+        ).forEach { table -> root.put(table, dumpTable(table)) }
+        return root.toString(2)
+    }
+
+    private fun dumpTable(table: String): JSONArray {
+        val arr = JSONArray()
+        db().rawQuery("SELECT * FROM $table", null).use { c ->
+            val names = c.columnNames
+            while (c.moveToNext()) {
+                val row = JSONObject()
+                names.forEachIndexed { i, name -> row.put(name, c.getString(i) ?: "") }
+                arr.put(row)
+            }
+        }
+        return arr
+    }
+
+    /** استيراد نسخة احتياطية: يستبدل كل البيانات الحالية. */
+    fun importJson(json: String) {
+        val root = JSONObject(json)
+        val d = db()
+        d.beginTransaction()
+        try {
+            listOf(
+                "invoice_items", "invoices", "product_sizes", "products",
+                "formula_items", "formulas", "ingredients", "settings"
+            ).forEach { d.execSQL("DELETE FROM $it") }
+
+            root.optJSONObject("settings")?.let { s ->
+                s.keys().forEach { key -> setSetting(key, s.getString(key)) }
+            }
+
+            listOf(
+                "ingredients", "formulas", "formula_items", "products",
+                "product_sizes", "invoices", "invoice_items"
+            ).forEach { table ->
+                val arr = root.optJSONArray(table) ?: return@forEach
+                for (i in 0 until arr.length()) {
+                    val row = arr.getJSONObject(i)
+                    val keys = row.keys().asSequence().toList()
+                    if (keys.isEmpty()) continue
+                    val cols = keys.joinToString(",") { "\"$it\"" }
+                    val marks = keys.joinToString(",") { "?" }
+                    d.execSQL(
+                        "INSERT INTO $table ($cols) VALUES ($marks)",
+                        bind(*keys.map { row.getString(it) }.toTypedArray())
+                    )
+                }
+            }
             d.setTransactionSuccessful()
         } finally {
             d.endTransaction()

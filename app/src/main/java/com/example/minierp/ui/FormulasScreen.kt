@@ -80,7 +80,7 @@ fun FormulasScreen(revision: Int, onChanged: () -> Unit) {
 
     Scaffold(
         floatingActionButton = {
-            FloatingActionButton(onClick = { adding = true }) {
+            FloatingActionButton(onClick = { adding = true }, shape = MaterialTheme.shapes.medium) {
                 Icon(Icons.Filled.Add, contentDescription = "تركيبة جديدة")
             }
         }
@@ -90,11 +90,9 @@ fun FormulasScreen(revision: Int, onChanged: () -> Unit) {
             verticalArrangement = Arrangement.spacedBy(8.dp)
         ) {
             item {
-                Text(
-                    "التركيبة = المكونات بجراماتها + خطوات التصنيع",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    modifier = Modifier.padding(bottom = 4.dp)
+                ModernHeader(
+                    title = "التركيبات",
+                    subtitle = "المكونات بجراماتها + خطوات التصنيع"
                 )
             }
             item {

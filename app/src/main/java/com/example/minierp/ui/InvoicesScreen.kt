@@ -61,11 +61,9 @@ fun InvoicesScreen(revision: Int, onChanged: () -> Unit) {
         verticalArrangement = Arrangement.spacedBy(8.dp)
     ) {
         item {
-            Text(
-                "الفواتير محفوظة على جهازك — اضغط على أي فاتورة لعرضها أو مشاركتها PDF",
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                modifier = Modifier.padding(bottom = 4.dp)
+            ModernHeader(
+                title = "الفواتير",
+                subtitle = "محفوظة على جهازك — اضغط على فاتورة لعرضها أو مشاركتها PDF"
             )
         }
         item {

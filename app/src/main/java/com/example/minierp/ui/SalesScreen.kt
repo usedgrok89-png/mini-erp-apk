@@ -90,6 +90,7 @@ fun SalesScreen(revision: Int, onChanged: () -> Unit) {
             .padding(12.dp),
         verticalArrangement = Arrangement.spacedBy(10.dp)
     ) {
+        ModernHeader(title = "مبيعات جديدة", subtitle = "اختر المنتج والحجم — السعر بيجي تلقائيًا")
         Card(modifier = Modifier.fillMaxWidth()) {
             Column(Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 Text("بيع جديد", style = MaterialTheme.typography.titleMedium)

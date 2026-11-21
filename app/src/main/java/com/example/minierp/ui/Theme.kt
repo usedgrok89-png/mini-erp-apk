@@ -5,8 +5,11 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Typography
 import androidx.compose.material3.darkColorScheme
 import androidx.compose.material3.lightColorScheme
+import androidx.compose.material3.Shapes
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.unit.dp
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.Font
 import androidx.compose.ui.text.font.FontWeight
@@ -82,5 +85,16 @@ fun MiniERPTheme(theme: String = "system", content: @Composable () -> Unit) {
         labelSmall = base.labelSmall.copy(fontFamily = tajawal)
     )
 
-    MaterialTheme(colorScheme = colors, typography = typed, content = content)
+    val shapes = Shapes(
+        small = RoundedCornerShape(10.dp),
+        medium = RoundedCornerShape(18.dp),
+        large = RoundedCornerShape(26.dp)
+    )
+
+    MaterialTheme(
+        colorScheme = colors,
+        typography = typed,
+        shapes = shapes,
+        content = content
+    )
 }

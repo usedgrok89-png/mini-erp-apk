@@ -35,7 +35,7 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          gh release create v1.1 app/build/outputs/apk/debug/app-debug.apk \
-            --title "النسخة 1.1" \
-            --notes "بحث في كل الصفحات + تنبيه التكرار + وضع نهاري/ليلي" \
-            || gh release upload v1.1 app/build/outputs/apk/debug/app-debug.apk --clobber
+          gh release create v1.2 app/build/outputs/apk/debug/app-debug.apk \
+            --title "النسخة 1.2" \
+            --notes "إصلاح الوضع الليلي + نسخة احتياطية JSON + شكل عصري" \
+            || gh release upload v1.2 app/build/outputs/apk/debug/app-debug.apk --clobber

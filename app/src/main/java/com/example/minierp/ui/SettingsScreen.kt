@@ -2,7 +2,10 @@
 
 package com.example.minierp.ui
 
+import android.content.Intent
 import android.widget.Toast
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -14,6 +17,7 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -25,17 +29,36 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import com.example.minierp.db.DB
+import com.example.minierp.util.exportBackup
+import com.example.minierp.util.importBackup
 
 @Composable
-fun SettingsScreen(revision: Int, onChanged: () -> Unit) {
+fun SettingsScreen(
+    revision: Int,
+    onChanged: () -> Unit,
+    theme: String,
+    onThemeChanged: (String) -> Unit
+) {
     val context = LocalContext.current
     val current = remember(revision) { DB.getSettings() }
+    val importLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.GetContent()
+    ) { uri ->
+        if (uri != null) {
+            val ok = importBackup(context, uri)
+            Toast.makeText(
+                context,
+                if (ok) "تم استيراد النسخة الاحتياطية بنجاح" else "تعذر قراءة الملف",
+                Toast.LENGTH_SHORT
+            ).show()
+            if (ok) onChanged()
+        }
+    }
     var currency by remember(revision) { mutableStateOf(current.currency) }
     var shopName by remember(revision) { mutableStateOf(current.shopName) }
     var shopPhone by remember(revision) { mutableStateOf(current.shopPhone) }
     var shopAddress by remember(revision) { mutableStateOf(current.shopAddress) }
     var invoiceNote by remember(revision) { mutableStateOf(current.invoiceNote) }
-    var theme by remember(revision) { mutableStateOf(current.theme) }
 
     Column(
         modifier = Modifier
@@ -43,6 +66,7 @@ fun SettingsScreen(revision: Int, onChanged: () -> Unit) {
             .padding(12.dp),
         verticalArrangement = Arrangement.spacedBy(10.dp)
     ) {
+        ModernHeader(title = "الإعدادات", subtitle = "العملة، بيانات المحل، المظهر، والنسخة الاحتياطية")
         Card(modifier = Modifier.fillMaxWidth()) {
             Column(Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 Text("إعدادات عامة", style = MaterialTheme.typography.titleMedium)
@@ -75,17 +99,17 @@ fun SettingsScreen(revision: Int, onChanged: () -> Unit) {
                 Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                     FilterChip(
                         selected = theme == "system",
-                        onClick = { theme = "system" },
+                        onClick = { onThemeChanged("system") },
                         label = { Text("تبع النظام") }
                     )
                     FilterChip(
                         selected = theme == "light",
-                        onClick = { theme = "light" },
+                        onClick = { onThemeChanged("light") },
                         label = { Text("نهاري ☀️") }
                     )
                     FilterChip(
                         selected = theme == "dark",
-                        onClick = { theme = "dark" },
+                        onClick = { onThemeChanged("dark") },
                         label = { Text("ليلي 🌙") }
                     )
                 }
@@ -106,6 +130,37 @@ fun SettingsScreen(revision: Int, onChanged: () -> Unit) {
                     },
                     modifier = Modifier.fillMaxWidth()
                 ) { Text("حفظ الإعدادات") }
+            }
+        }
+
+        Card(modifier = Modifier.fillMaxWidth()) {
+            Column(Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                Text("النسخة الاحتياطية", style = MaterialTheme.typography.titleMedium)
+                Text(
+                    "صدّر كل بياناتك (المكونات، التركيبات، المنتجات، الفواتير، الإعدادات) في ملف واحد، واستعدها في أي وقت أو على جهاز جديد.",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+                Button(
+                    onClick = {
+                        val uri = exportBackup(context)
+                        if (uri != null) {
+                            val intent = Intent(Intent.ACTION_SEND).apply {
+                                type = "application/json"
+                                putExtra(Intent.EXTRA_STREAM, uri)
+                                addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+                            }
+                            context.startActivity(Intent.createChooser(intent, "مشاركة النسخة الاحتياطية"))
+                        } else {
+                            Toast.makeText(context, "تعذر إنشاء النسخة الاحتياطية", Toast.LENGTH_SHORT).show()
+                        }
+                    },
+                    modifier = Modifier.fillMaxWidth()
+                ) { Text("تصدير النسخة الاحتياطية") }
+                OutlinedButton(
+                    onClick = { importLauncher.launch("application/json") },
+                    modifier = Modifier.fillMaxWidth()
+                ) { Text("استيراد نسخة احتياطية") }
             }
         }
 
