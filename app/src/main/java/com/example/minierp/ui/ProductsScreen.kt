@@ -42,6 +42,11 @@ import com.example.minierp.db.DB
 import com.example.minierp.db.Product
 import com.example.minierp.db.SizeInput
 
+private data class ProductPending(
+    val name: String, val formulaId: Long?, val note: String,
+    val sizes: List<SizeInput>
+)
+
 @Composable
 fun ProductsScreen(revision: Int, onChanged: () -> Unit) {
     val products = remember(revision) { DB.products() }
@@ -51,9 +56,34 @@ fun ProductsScreen(revision: Int, onChanged: () -> Unit) {
         products.associate { it.id to DB.productSizes(it.id) }
     }
     val formulaNames = remember(formulas) { formulas.associate { it.id to it.name } }
+    var query by remember { mutableStateOf("") }
+    val filtered = remember(products, query, formulaNames) {
+        val q = query.trim()
+        if (q.isBlank()) products else products.filter {
+            it.name.contains(q, ignoreCase = true) ||
+                (it.formulaId?.let { id -> formulaNames[id]?.contains(q, ignoreCase = true) } == true)
+        }
+    }
     var adding by remember { mutableStateOf(false) }
     var editing by remember { mutableStateOf<Product?>(null) }
     var deleting by remember { mutableStateOf<Product?>(null) }
+    var duplicate by remember { mutableStateOf<Product?>(null) }
+    var pendingSave by remember { mutableStateOf<ProductPending?>(null) }
+
+    fun saveProduct(
+        name: String, formulaId: Long?, note: String, sizes: List<SizeInput>, skipId: Long
+    ) {
+        val found = products.firstOrNull {
+            it.name.equals(name.trim(), ignoreCase = true) && it.id != skipId
+        }
+        if (found != null) {
+            pendingSave = ProductPending(name, formulaId, note, sizes)
+            duplicate = found
+        } else {
+            DB.saveProduct(skipId, name, formulaId, note, sizes)
+            onChanged(); adding = false; editing = null
+        }
+    }
 
     Scaffold(
         floatingActionButton = {
@@ -74,7 +104,16 @@ fun ProductsScreen(revision: Int, onChanged: () -> Unit) {
                     modifier = Modifier.padding(bottom = 4.dp)
                 )
             }
-            items(products, key = { it.id }) { p ->
+            item {
+                OutlinedTextField(
+                    value = query,
+                    onValueChange = { query = it },
+                    label = { Text("بحث في المنتجات") },
+                    singleLine = true,
+                    modifier = Modifier.fillMaxWidth()
+                )
+            }
+            items(filtered, key = { it.id }) { p ->
                 Card(modifier = Modifier.fillMaxWidth()) {
                     Row(modifier = Modifier.padding(12.dp), verticalAlignment = Alignment.Top) {
                         Column(modifier = Modifier.weight(1f)) {
@@ -119,7 +158,14 @@ fun ProductsScreen(revision: Int, onChanged: () -> Unit) {
                     }
                 }
             }
-            if (products.isEmpty()) item { EmptyHint("لا توجد منتجات بعد — اضغط + للإضافة") }
+            if (filtered.isEmpty()) {
+                item {
+                    EmptyHint(
+                        if (query.isBlank()) "لا توجد منتجات بعد — اضغط + للإضافة"
+                        else "لا توجد نتائج مطابقة للبحث"
+                    )
+                }
+            }
         }
     }
 
@@ -130,8 +176,25 @@ fun ProductsScreen(revision: Int, onChanged: () -> Unit) {
             currency = currency,
             onDismiss = { adding = false; editing = null },
             onSave = { name, formulaId, note, sizes ->
-                DB.saveProduct(editing?.id ?: 0L, name, formulaId, note, sizes)
-                onChanged(); adding = false; editing = null
+                saveProduct(name, formulaId, note, sizes, editing?.id ?: 0L)
+            }
+        )
+    }
+    duplicate?.let { dup ->
+        AlertDialog(
+            onDismissRequest = { duplicate = null; pendingSave = null },
+            title = { Text("منتج مكرر") },
+            text = { Text("المنتج «${dup.name}» موجود بالفعل. هل تريد تعديله بالبيانات الجديدة؟") },
+            confirmButton = {
+                TextButton(onClick = {
+                    val v = pendingSave ?: return@TextButton
+                    DB.saveProduct(dup.id, v.name, v.formulaId, v.note, v.sizes)
+                    onChanged(); adding = false; editing = null
+                    duplicate = null; pendingSave = null
+                }) { Text("تعديل الموجود") }
+            },
+            dismissButton = {
+                TextButton(onClick = { duplicate = null; pendingSave = null }) { Text("إلغاء") }
             }
         )
     }
@@ -170,6 +233,7 @@ private fun ProductDialog(
     var label by remember { mutableStateOf("") }
     var grams by remember { mutableStateOf("") }
     var price by remember { mutableStateOf("") }
+    var sizeError by remember { mutableStateOf("") }
 
     val formulaOptions = listOf(0L to "بدون تركيبة") + formulas.map { it.id to it.name }
 
@@ -220,12 +284,19 @@ private fun ProductDialog(
                 Button(
                     onClick = {
                         if (label.isNotBlank()) {
-                            drafts.add(SizeDraft(label.trim(), grams, price))
-                            label = ""; grams = ""; price = ""
+                            if (drafts.any { it.label.equals(label.trim(), ignoreCase = true) }) {
+                                sizeError = "هذا الحجم مضاف بالفعل — عدّل السعر من القائمة"
+                            } else {
+                                drafts.add(SizeDraft(label.trim(), grams, price))
+                                label = ""; grams = ""; price = ""; sizeError = ""
+                            }
                         }
                     },
                     modifier = Modifier.fillMaxWidth()
                 ) { Text("إضافة الحجم") }
+                if (sizeError.isNotBlank()) {
+                    Text(sizeError, color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall)
+                }
 
                 drafts.forEachIndexed { index, s ->
                     Row(verticalAlignment = Alignment.CenterVertically) {

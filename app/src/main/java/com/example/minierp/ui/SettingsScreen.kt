@@ -1,14 +1,18 @@
+@file:OptIn(androidx.compose.material3.ExperimentalMaterial3Api::class)
+
 package com.example.minierp.ui
 
 import android.widget.Toast
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
+import androidx.compose.material3.FilterChip
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
@@ -31,6 +35,7 @@ fun SettingsScreen(revision: Int, onChanged: () -> Unit) {
     var shopPhone by remember(revision) { mutableStateOf(current.shopPhone) }
     var shopAddress by remember(revision) { mutableStateOf(current.shopAddress) }
     var invoiceNote by remember(revision) { mutableStateOf(current.invoiceNote) }
+    var theme by remember(revision) { mutableStateOf(current.theme) }
 
     Column(
         modifier = Modifier
@@ -66,6 +71,24 @@ fun SettingsScreen(revision: Int, onChanged: () -> Unit) {
                     label = { Text("ملاحظة تظهر في نهاية الفاتورة") },
                     modifier = Modifier.fillMaxWidth()
                 )
+                Text("المظهر", style = MaterialTheme.typography.titleSmall)
+                Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                    FilterChip(
+                        selected = theme == "system",
+                        onClick = { theme = "system" },
+                        label = { Text("تبع النظام") }
+                    )
+                    FilterChip(
+                        selected = theme == "light",
+                        onClick = { theme = "light" },
+                        label = { Text("نهاري ☀️") }
+                    )
+                    FilterChip(
+                        selected = theme == "dark",
+                        onClick = { theme = "dark" },
+                        label = { Text("ليلي 🌙") }
+                    )
+                }
                 Button(
                     onClick = {
                         DB.saveSettings(
@@ -74,7 +97,8 @@ fun SettingsScreen(revision: Int, onChanged: () -> Unit) {
                                 shopName = shopName.trim(),
                                 shopPhone = shopPhone.trim(),
                                 shopAddress = shopAddress.trim(),
-                                invoiceNote = invoiceNote.trim()
+                                invoiceNote = invoiceNote.trim(),
+                                theme = theme
                             )
                         )
                         onChanged()

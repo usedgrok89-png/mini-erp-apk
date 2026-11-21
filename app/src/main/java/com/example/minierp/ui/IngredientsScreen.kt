@@ -40,9 +40,32 @@ import com.example.minierp.db.Ingredient
 fun IngredientsScreen(revision: Int, onChanged: () -> Unit) {
     val items = remember(revision) { DB.ingredients() }
     val currency = remember(revision) { DB.getSettings().currency }
+    var query by remember { mutableStateOf("") }
+    val filtered = remember(items, query) {
+        val q = query.trim()
+        if (q.isBlank()) items else items.filter {
+            it.name.contains(q, ignoreCase = true) || it.note.contains(q, ignoreCase = true)
+        }
+    }
     var adding by remember { mutableStateOf(false) }
     var editing by remember { mutableStateOf<Ingredient?>(null) }
     var deleting by remember { mutableStateOf<Ingredient?>(null) }
+    var duplicate by remember { mutableStateOf<Ingredient?>(null) }
+    var pendingSave by remember { mutableStateOf<Triple<String, Double, String>?>(null) }
+
+    fun saveIngredient(n: String, p: Double, note: String, skipId: Long) {
+        val found = items.firstOrNull {
+            it.name.equals(n.trim(), ignoreCase = true) && it.id != skipId
+        }
+        if (found != null) {
+            pendingSave = Triple(n, p, note)
+            duplicate = found
+        } else {
+            if (skipId == 0L) DB.addIngredient(n, p, note)
+            else DB.updateIngredient(skipId, n, p, note)
+            onChanged(); adding = false; editing = null
+        }
+    }
 
     Scaffold(
         floatingActionButton = {
@@ -63,7 +86,16 @@ fun IngredientsScreen(revision: Int, onChanged: () -> Unit) {
                     modifier = Modifier.padding(bottom = 4.dp)
                 )
             }
-            items(items, key = { it.id }) { ing ->
+            item {
+                OutlinedTextField(
+                    value = query,
+                    onValueChange = { query = it },
+                    label = { Text("بحث في المكونات") },
+                    singleLine = true,
+                    modifier = Modifier.fillMaxWidth()
+                )
+            }
+            items(filtered, key = { it.id }) { ing ->
                 Card(modifier = Modifier.fillMaxWidth()) {
                     Row(
                         modifier = Modifier.padding(12.dp),
@@ -93,7 +125,14 @@ fun IngredientsScreen(revision: Int, onChanged: () -> Unit) {
                     }
                 }
             }
-            if (items.isEmpty()) item { EmptyHint("لا توجد مكونات بعد — اضغط + للإضافة") }
+            if (filtered.isEmpty()) {
+                item {
+                    EmptyHint(
+                        if (query.isBlank()) "لا توجد مكونات بعد — اضغط + للإضافة"
+                        else "لا توجد نتائج مطابقة للبحث"
+                    )
+                }
+            }
         }
     }
 
@@ -101,14 +140,32 @@ fun IngredientsScreen(revision: Int, onChanged: () -> Unit) {
         IngredientDialog(
             existing = null, currency = currency,
             onDismiss = { adding = false },
-            onSave = { n, p, note -> DB.addIngredient(n, p, note); onChanged(); adding = false }
+            onSave = { n, p, note -> saveIngredient(n, p, note, 0L) }
         )
     }
     editing?.let { current ->
         IngredientDialog(
             existing = current, currency = currency,
             onDismiss = { editing = null },
-            onSave = { n, p, note -> DB.updateIngredient(current.id, n, p, note); onChanged(); editing = null }
+            onSave = { n, p, note -> saveIngredient(n, p, note, current.id) }
+        )
+    }
+    duplicate?.let { dup ->
+        AlertDialog(
+            onDismissRequest = { duplicate = null; pendingSave = null },
+            title = { Text("مكون مكرر") },
+            text = { Text("المكون «${dup.name}» موجود بالفعل. هل تريد تعديله بالبيانات الجديدة؟") },
+            confirmButton = {
+                TextButton(onClick = {
+                    val v = pendingSave ?: return@TextButton
+                    DB.updateIngredient(dup.id, v.first, v.second, v.third)
+                    onChanged(); adding = false; editing = null
+                    duplicate = null; pendingSave = null
+                }) { Text("تعديل الموجود") }
+            },
+            dismissButton = {
+                TextButton(onClick = { duplicate = null; pendingSave = null }) { Text("إلغاء") }
+            }
         )
     }
     deleting?.let { current ->

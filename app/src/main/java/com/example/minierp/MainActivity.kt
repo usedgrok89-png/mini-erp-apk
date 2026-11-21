@@ -5,6 +5,7 @@ package com.example.minierp
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.MaterialTheme
@@ -14,9 +15,9 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Tab
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
-import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
@@ -36,21 +37,7 @@ class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         DB.init(this)
-        setContent {
-            // نفرض اتجاه عربي RTL حتى لو لغة الجهاز إنجليزية
-            androidx.compose.runtime.CompositionLocalProvider(
-                LocalLayoutDirection provides LayoutDirection.Rtl
-            ) {
-                MiniERPTheme {
-                    Surface(
-                        modifier = Modifier.fillMaxSize(),
-                        color = MaterialTheme.colorScheme.background
-                    ) {
-                        AppRoot()
-                    }
-                }
-            }
-        }
+        setContent { AppRoot() }
     }
 }
 
@@ -60,39 +47,50 @@ private fun AppRoot() {
     var selected by remember { mutableIntStateOf(0) }
     var revision by remember { mutableIntStateOf(0) }
     val bump: () -> Unit = { revision++ }
+    val theme = remember(revision) { DB.getSettings().theme }
 
-    Scaffold(
-        topBar = {
-            ScrollableTabRow(
-                selectedTabIndex = selected,
-                edgePadding = 8.dp,
-                containerColor = MaterialTheme.colorScheme.primary,
-                contentColor = MaterialTheme.colorScheme.onPrimary
+    MiniERPTheme(theme = theme) {
+        // نفرض اتجاه عربي RTL حتى لو لغة الجهاز إنجليزية
+        CompositionLocalProvider(LocalLayoutDirection provides LayoutDirection.Rtl) {
+            Surface(
+                modifier = Modifier.fillMaxSize(),
+                color = MaterialTheme.colorScheme.background
             ) {
-                tabs.forEachIndexed { index, title ->
-                    Tab(
-                        selected = selected == index,
-                        onClick = { selected = index },
-                        text = { Text(title) },
-                        selectedContentColor = MaterialTheme.colorScheme.onPrimary,
-                        unselectedContentColor = MaterialTheme.colorScheme.onPrimary.copy(alpha = 0.7f)
-                    )
+                Scaffold(
+                    topBar = {
+                        ScrollableTabRow(
+                            selectedTabIndex = selected,
+                            edgePadding = 8.dp,
+                            containerColor = MaterialTheme.colorScheme.primary,
+                            contentColor = MaterialTheme.colorScheme.onPrimary
+                        ) {
+                            tabs.forEachIndexed { index, title ->
+                                Tab(
+                                    selected = selected == index,
+                                    onClick = { selected = index },
+                                    text = { Text(title) },
+                                    selectedContentColor = MaterialTheme.colorScheme.onPrimary,
+                                    unselectedContentColor = MaterialTheme.colorScheme.onPrimary.copy(alpha = 0.7f)
+                                )
+                            }
+                        }
+                    }
+                ) { padding ->
+                    Box(
+                        Modifier
+                            .fillMaxSize()
+                            .padding(padding)
+                    ) {
+                        when (selected) {
+                            0 -> IngredientsScreen(revision, bump)
+                            1 -> FormulasScreen(revision, bump)
+                            2 -> ProductsScreen(revision, bump)
+                            3 -> SalesScreen(revision, bump)
+                            4 -> InvoicesScreen(revision, bump)
+                            5 -> SettingsScreen(revision, bump)
+                        }
+                    }
                 }
-            }
-        }
-    ) { padding ->
-        androidx.compose.foundation.layout.Box(
-            Modifier
-                .fillMaxSize()
-                .padding(padding)
-        ) {
-            when (selected) {
-                0 -> IngredientsScreen(revision, bump)
-                1 -> FormulasScreen(revision, bump)
-                2 -> ProductsScreen(revision, bump)
-                3 -> SalesScreen(revision, bump)
-                4 -> InvoicesScreen(revision, bump)
-                5 -> SettingsScreen(revision, bump)
             }
         }
     }

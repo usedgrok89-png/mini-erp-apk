@@ -20,6 +20,7 @@ import androidx.compose.ui.window.Dialog
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -43,6 +44,15 @@ fun InvoicesScreen(revision: Int, onChanged: () -> Unit) {
     val context = LocalContext.current
     val invoices = remember(revision) { DB.invoices() }
     val settings = remember(revision) { DB.getSettings() }
+    var query by remember { mutableStateOf("") }
+    val filtered = remember(invoices, query) {
+        val q = query.trim()
+        if (q.isBlank()) invoices else invoices.filter {
+            it.invoiceNo.contains(q, ignoreCase = true) ||
+                it.customerName.contains(q, ignoreCase = true) ||
+                it.customerPhone.contains(q, ignoreCase = true)
+        }
+    }
     var selected by remember { mutableStateOf<Invoice?>(null) }
     var deleting by remember { mutableStateOf<Invoice?>(null) }
 
@@ -58,7 +68,16 @@ fun InvoicesScreen(revision: Int, onChanged: () -> Unit) {
                 modifier = Modifier.padding(bottom = 4.dp)
             )
         }
-        items(invoices, key = { it.id }) { inv ->
+        item {
+            OutlinedTextField(
+                value = query,
+                onValueChange = { query = it },
+                label = { Text("بحث في الفواتير (رقم / عميل / هاتف)") },
+                singleLine = true,
+                modifier = Modifier.fillMaxWidth()
+            )
+        }
+        items(filtered, key = { it.id }) { inv ->
             Card(modifier = Modifier.fillMaxWidth(), onClick = { selected = inv }) {
                 Row(
                     modifier = Modifier.fillMaxWidth().padding(12.dp),
@@ -81,7 +100,14 @@ fun InvoicesScreen(revision: Int, onChanged: () -> Unit) {
                 }
             }
         }
-        if (invoices.isEmpty()) item { EmptyHint("لا توجد فواتير بعد — اعمل أول عملية بيع من شاشة المبيعات") }
+        if (filtered.isEmpty()) {
+            item {
+                EmptyHint(
+                    if (query.isBlank()) "لا توجد فواتير بعد — اعمل أول عملية بيع من شاشة المبيعات"
+                    else "لا توجد نتائج مطابقة للبحث"
+                )
+            }
+        }
     }
 
     selected?.let { inv ->

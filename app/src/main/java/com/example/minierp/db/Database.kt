@@ -44,7 +44,8 @@ object DB {
         shopName = setting("shop_name"),
         shopPhone = setting("shop_phone"),
         shopAddress = setting("shop_address"),
-        invoiceNote = setting("invoice_note")
+        invoiceNote = setting("invoice_note"),
+        theme = setting("theme", "system")
     )
 
     fun saveSettings(s: Settings) {
@@ -56,7 +57,8 @@ object DB {
                 "shop_name" to s.shopName,
                 "shop_phone" to s.shopPhone,
                 "shop_address" to s.shopAddress,
-                "invoice_note" to s.invoiceNote
+                "invoice_note" to s.invoiceNote,
+                "theme" to s.theme
             ).forEach { (k, v) -> setSetting(k, v) }
             d.setTransactionSuccessful()
         } finally {

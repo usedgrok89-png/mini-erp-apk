@@ -41,15 +41,42 @@ import com.example.minierp.db.DB
 import com.example.minierp.db.Formula
 import com.example.minierp.db.Ingredient
 
+private data class FormulaPending(
+    val name: String, val steps: String, val note: String,
+    val items: List<Pair<Long, Double>>
+)
+
 @Composable
 fun FormulasScreen(revision: Int, onChanged: () -> Unit) {
     val formulas = remember(revision) { DB.formulas() }
     val ingredients = remember(revision) { DB.ingredients() }
     val currency = remember(revision) { DB.getSettings().currency }
     val costs = remember(revision, formulas) { formulas.associate { it.id to DB.formulaCost(it.id) } }
+    var query by remember { mutableStateOf("") }
+    val filtered = remember(formulas, query) {
+        val q = query.trim()
+        if (q.isBlank()) formulas else formulas.filter {
+            it.name.contains(q, ignoreCase = true) || it.steps.contains(q, ignoreCase = true)
+        }
+    }
     var adding by remember { mutableStateOf(false) }
     var editing by remember { mutableStateOf<Formula?>(null) }
     var deleting by remember { mutableStateOf<Formula?>(null) }
+    var duplicate by remember { mutableStateOf<Formula?>(null) }
+    var pendingSave by remember { mutableStateOf<FormulaPending?>(null) }
+
+    fun saveFormula(name: String, steps: String, note: String, items: List<Pair<Long, Double>>, skipId: Long) {
+        val found = formulas.firstOrNull {
+            it.name.equals(name.trim(), ignoreCase = true) && it.id != skipId
+        }
+        if (found != null) {
+            pendingSave = FormulaPending(name, steps, note, items)
+            duplicate = found
+        } else {
+            DB.saveFormula(skipId, name, steps, note, items)
+            onChanged(); adding = false; editing = null
+        }
+    }
 
     Scaffold(
         floatingActionButton = {
@@ -70,7 +97,16 @@ fun FormulasScreen(revision: Int, onChanged: () -> Unit) {
                     modifier = Modifier.padding(bottom = 4.dp)
                 )
             }
-            items(formulas, key = { it.id }) { f ->
+            item {
+                OutlinedTextField(
+                    value = query,
+                    onValueChange = { query = it },
+                    label = { Text("بحث في التركيبات") },
+                    singleLine = true,
+                    modifier = Modifier.fillMaxWidth()
+                )
+            }
+            items(filtered, key = { it.id }) { f ->
                 Card(modifier = Modifier.fillMaxWidth()) {
                     Row(
                         modifier = Modifier.padding(12.dp),
@@ -101,7 +137,14 @@ fun FormulasScreen(revision: Int, onChanged: () -> Unit) {
                     }
                 }
             }
-            if (formulas.isEmpty()) item { EmptyHint("لا توجد تركيبات بعد — اضغط + للإضافة") }
+            if (filtered.isEmpty()) {
+                item {
+                    EmptyHint(
+                        if (query.isBlank()) "لا توجد تركيبات بعد — اضغط + للإضافة"
+                        else "لا توجد نتائج مطابقة للبحث"
+                    )
+                }
+            }
         }
     }
 
@@ -112,8 +155,25 @@ fun FormulasScreen(revision: Int, onChanged: () -> Unit) {
             currency = currency,
             onDismiss = { adding = false; editing = null },
             onSave = { name, steps, note, items ->
-                DB.saveFormula(editing?.id ?: 0L, name, steps, note, items)
-                onChanged(); adding = false; editing = null
+                saveFormula(name, steps, note, items, editing?.id ?: 0L)
+            }
+        )
+    }
+    duplicate?.let { dup ->
+        AlertDialog(
+            onDismissRequest = { duplicate = null; pendingSave = null },
+            title = { Text("تركيبة مكررة") },
+            text = { Text("التركيبة «${dup.name}» موجودة بالفعل. هل تريد تعديلها بالبيانات الجديدة؟") },
+            confirmButton = {
+                TextButton(onClick = {
+                    val v = pendingSave ?: return@TextButton
+                    DB.saveFormula(dup.id, v.name, v.steps, v.note, v.items)
+                    onChanged(); adding = false; editing = null
+                    duplicate = null; pendingSave = null
+                }) { Text("تعديل الموجودة") }
+            },
+            dismissButton = {
+                TextButton(onClick = { duplicate = null; pendingSave = null }) { Text("إلغاء") }
             }
         )
     }

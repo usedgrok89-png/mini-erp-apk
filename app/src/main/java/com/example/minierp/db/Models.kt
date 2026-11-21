@@ -72,5 +72,6 @@ data class Settings(
     val shopName: String = "",
     val shopPhone: String = "",
     val shopAddress: String = "",
-    val invoiceNote: String = ""
+    val invoiceNote: String = "",
+    val theme: String = "system" // system | light | dark
 )

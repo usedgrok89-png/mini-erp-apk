@@ -58,6 +58,11 @@ fun SalesScreen(revision: Int, onChanged: () -> Unit) {
     val currency = settings.currency
     val productNames = remember(products) { products.associate { it.id to it.name } }
 
+    var productQuery by remember { mutableStateOf("") }
+    val filteredProducts = remember(products, productQuery) {
+        val q = productQuery.trim()
+        if (q.isBlank()) products else products.filter { it.name.contains(q, ignoreCase = true) }
+    }
     var productId by remember { mutableStateOf(0L) }
     var sizeId by remember { mutableStateOf(0L) }
     var qtyText by remember { mutableStateOf("1") }
@@ -88,10 +93,17 @@ fun SalesScreen(revision: Int, onChanged: () -> Unit) {
         Card(modifier = Modifier.fillMaxWidth()) {
             Column(Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 Text("بيع جديد", style = MaterialTheme.typography.titleMedium)
+                OutlinedTextField(
+                    value = productQuery,
+                    onValueChange = { productQuery = it },
+                    label = { Text("بحث في المنتجات") },
+                    singleLine = true,
+                    modifier = Modifier.fillMaxWidth()
+                )
                 Picker(
                     label = "المنتج",
                     selectedText = productNames[productId] ?: "",
-                    options = products.map { it.id to it.name },
+                    options = filteredProducts.map { it.id to it.name },
                     onSelect = { productId = it; sizeId = 0L }
                 )
                 Picker(

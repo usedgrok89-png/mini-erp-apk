@@ -8,6 +8,9 @@ on:
 jobs:
   build:
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -21,9 +24,18 @@ jobs:
       - name: Build installable APK
         run: ./gradlew assembleDebug --no-daemon --stacktrace
 
-      - name: Upload APK
+      - name: Upload APK artifact
         uses: actions/upload-artifact@v4
         with:
           name: app-debug
           path: app/build/outputs/apk/debug/app-debug.apk
           if-no-files-found: error
+
+      - name: Publish release with direct APK link
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh release create v1.1 app/build/outputs/apk/debug/app-debug.apk \
+            --title "النسخة 1.1" \
+            --notes "بحث في كل الصفحات + تنبيه التكرار + وضع نهاري/ليلي" \
+            || gh release upload v1.1 app/build/outputs/apk/debug/app-debug.apk --clobber
