@@ -24,15 +24,19 @@ object DB {
     private fun Cursor.d(col: String): Double = getDouble(getColumnIndexOrThrow(col))
     private fun Cursor.l(col: String): Long = getLong(getColumnIndexOrThrow(col))
 
+    // SQLite يتطلب متغيرات الربط كنصوص (Array<String?>)
+    private fun bind(vararg values: Any?): Array<String?> =
+        values.map { it?.toString() }.toTypedArray()
+
     // ---------------------------------------------------------------- settings
 
     fun setting(key: String, default: String = ""): String =
-        db().rawQuery("SELECT value FROM settings WHERE key=?", arrayOf(key)).use { c ->
+        db().rawQuery("SELECT value FROM settings WHERE key=?", bind(key)).use { c ->
             if (c.moveToFirst()) c.s("value") else default
         }
 
     fun setSetting(key: String, value: String) {
-        db().execSQL("INSERT OR REPLACE INTO settings(key,value) VALUES(?,?)", arrayOf(key, value))
+        db().execSQL("INSERT OR REPLACE INTO settings(key,value) VALUES(?,?)", bind(key, value))
     }
 
     fun getSettings(): Settings = Settings(
@@ -75,14 +79,14 @@ object DB {
     fun addIngredient(name: String, pricePerGram: Double, note: String) {
         db().execSQL(
             "INSERT INTO ingredients(name,price_per_gram,note) VALUES(?,?,?)",
-            arrayOf(name, pricePerGram, note)
+            bind(name, pricePerGram, note)
         )
     }
 
     fun updateIngredient(id: Long, name: String, pricePerGram: Double, note: String) {
         db().execSQL(
             "UPDATE ingredients SET name=?,price_per_gram=?,note=? WHERE id=?",
-            arrayOf(name, pricePerGram, note, id)
+            bind(name, pricePerGram, note, id)
         )
     }
 
@@ -90,8 +94,8 @@ object DB {
         val d = db()
         d.beginTransaction()
         try {
-            d.execSQL("DELETE FROM formula_items WHERE ingredient_id=?", arrayOf(id))
-            d.execSQL("DELETE FROM ingredients WHERE id=?", arrayOf(id))
+            d.execSQL("DELETE FROM formula_items WHERE ingredient_id=?", bind(id))
+            d.execSQL("DELETE FROM ingredients WHERE id=?", bind(id))
             d.setTransactionSuccessful()
         } finally {
             d.endTransaction()
@@ -112,7 +116,7 @@ object DB {
 
     fun formulaItems(formulaId: Long): List<FormulaItem> {
         val out = mutableListOf<FormulaItem>()
-        db().rawQuery("SELECT * FROM formula_items WHERE formula_id=?", arrayOf(formulaId)).use { c ->
+        db().rawQuery("SELECT * FROM formula_items WHERE formula_id=?", bind(formulaId)).use { c ->
             while (c.moveToNext()) {
                 out += FormulaItem(
                     c.l("id"), c.l("formula_id"), c.l("ingredient_id"), c.d("grams")
@@ -128,7 +132,7 @@ object DB {
             """SELECT COALESCE(SUM(fi.grams * i.price_per_gram),0) AS cost
                FROM formula_items fi JOIN ingredients i ON i.id = fi.ingredient_id
                WHERE fi.formula_id=?""",
-            arrayOf(formulaId)
+            bind(formulaId)
         ).use { c -> if (c.moveToFirst()) c.d("cost") else 0.0 }
 
     fun saveFormula(
@@ -142,22 +146,22 @@ object DB {
         d.beginTransaction()
         try {
             val formulaId = if (id == 0L) {
-                d.execSQL("INSERT INTO formulas(name,steps,note) VALUES(?,?,?)", arrayOf(name, steps, note))
+                d.execSQL("INSERT INTO formulas(name,steps,note) VALUES(?,?,?)", bind(name, steps, note))
                 d.rawQuery("SELECT last_insert_rowid()", null).use { c ->
                     c.moveToFirst(); c.getLong(0)
                 }
             } else {
                 d.execSQL(
                     "UPDATE formulas SET name=?,steps=?,note=? WHERE id=?",
-                    arrayOf(name, steps, note, id)
+                    bind(name, steps, note, id)
                 )
-                d.execSQL("DELETE FROM formula_items WHERE formula_id=?", arrayOf(id))
+                d.execSQL("DELETE FROM formula_items WHERE formula_id=?", bind(id))
                 id
             }
             items.forEach { (ingredientId, grams) ->
                 d.execSQL(
                     "INSERT INTO formula_items(formula_id,ingredient_id,grams) VALUES(?,?,?)",
-                    arrayOf(formulaId, ingredientId, grams)
+                    bind(formulaId, ingredientId, grams)
                 )
             }
             d.setTransactionSuccessful()
@@ -171,9 +175,9 @@ object DB {
         val d = db()
         d.beginTransaction()
         try {
-            d.execSQL("DELETE FROM formula_items WHERE formula_id=?", arrayOf(id))
-            d.execSQL("UPDATE products SET formula_id=NULL WHERE formula_id=?", arrayOf(id))
-            d.execSQL("DELETE FROM formulas WHERE id=?", arrayOf(id))
+            d.execSQL("DELETE FROM formula_items WHERE formula_id=?", bind(id))
+            d.execSQL("UPDATE products SET formula_id=NULL WHERE formula_id=?", bind(id))
+            d.execSQL("DELETE FROM formulas WHERE id=?", bind(id))
             d.setTransactionSuccessful()
         } finally {
             d.endTransaction()
@@ -197,7 +201,7 @@ object DB {
         val out = mutableListOf<ProductSize>()
         db().rawQuery(
             "SELECT * FROM product_sizes WHERE product_id=? ORDER BY id",
-            arrayOf(productId)
+            bind(productId)
         ).use { c ->
             while (c.moveToNext()) {
                 out += ProductSize(
@@ -233,7 +237,7 @@ object DB {
             val productId = if (id == 0L) {
                 d.execSQL(
                     "INSERT INTO products(name,formula_id,note) VALUES(?,?,?)",
-                    arrayOf(name, formulaId, note)
+                    bind(name, formulaId, note)
                 )
                 d.rawQuery("SELECT last_insert_rowid()", null).use { c ->
                     c.moveToFirst(); c.getLong(0)
@@ -241,15 +245,15 @@ object DB {
             } else {
                 d.execSQL(
                     "UPDATE products SET name=?,formula_id=?,note=? WHERE id=?",
-                    arrayOf(name, formulaId, note, id)
+                    bind(name, formulaId, note, id)
                 )
-                d.execSQL("DELETE FROM product_sizes WHERE product_id=?", arrayOf(id))
+                d.execSQL("DELETE FROM product_sizes WHERE product_id=?", bind(id))
                 id
             }
             sizes.filter { it.label.isNotBlank() }.forEach { s ->
                 d.execSQL(
                     "INSERT INTO product_sizes(product_id,label,grams,price) VALUES(?,?,?,?)",
-                    arrayOf(productId, s.label, s.grams, s.price)
+                    bind(productId, s.label, s.grams, s.price)
                 )
             }
             d.setTransactionSuccessful()
@@ -263,8 +267,8 @@ object DB {
         val d = db()
         d.beginTransaction()
         try {
-            d.execSQL("DELETE FROM product_sizes WHERE product_id=?", arrayOf(id))
-            d.execSQL("DELETE FROM products WHERE id=?", arrayOf(id))
+            d.execSQL("DELETE FROM product_sizes WHERE product_id=?", bind(id))
+            d.execSQL("DELETE FROM products WHERE id=?", bind(id))
             d.setTransactionSuccessful()
         } finally {
             d.endTransaction()
@@ -287,7 +291,7 @@ object DB {
                 """INSERT INTO invoices(invoice_no,customer_name,customer_phone,dateMillis,
                    subtotal,discount_type,discount_value,discount_amount,total,note)
                    VALUES(?,?,?,?,?,?,?,?,?,?)""",
-                arrayOf(
+                bind(
                     invoice.invoiceNo, invoice.customerName, invoice.customerPhone,
                     invoice.dateMillis, invoice.subtotal, invoice.discountType,
                     invoice.discountValue, invoice.discountAmount, invoice.total, invoice.note
@@ -300,7 +304,7 @@ object DB {
                 d.execSQL(
                     """INSERT INTO invoice_items(invoice_id,product_name,size_label,
                        unit_price,qty,line_total,grams) VALUES(?,?,?,?,?,?,?)""",
-                    arrayOf(
+                    bind(
                         invoiceId, item.productName, item.sizeLabel, item.unitPrice,
                         item.qty, item.lineTotal, item.grams
                     )
@@ -337,7 +341,7 @@ object DB {
 
     fun invoiceItems(invoiceId: Long): List<InvoiceItem> {
         val out = mutableListOf<InvoiceItem>()
-        db().rawQuery("SELECT * FROM invoice_items WHERE invoice_id=?", arrayOf(invoiceId)).use { c ->
+        db().rawQuery("SELECT * FROM invoice_items WHERE invoice_id=?", bind(invoiceId)).use { c ->
             while (c.moveToNext()) {
                 out += InvoiceItem(
                     c.l("id"), c.l("invoice_id"), c.s("product_name"), c.s("size_label"),
@@ -352,8 +356,8 @@ object DB {
         val d = db()
         d.beginTransaction()
         try {
-            d.execSQL("DELETE FROM invoice_items WHERE invoice_id=?", arrayOf(id))
-            d.execSQL("DELETE FROM invoices WHERE id=?", arrayOf(id))
+            d.execSQL("DELETE FROM invoice_items WHERE invoice_id=?", bind(id))
+            d.execSQL("DELETE FROM invoices WHERE id=?", bind(id))
             d.setTransactionSuccessful()
         } finally {
             d.endTransaction()

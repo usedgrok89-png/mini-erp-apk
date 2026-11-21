@@ -39,6 +39,7 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import com.example.minierp.db.DB
 import com.example.minierp.db.Formula
+import com.example.minierp.db.Ingredient
 
 @Composable
 fun FormulasScreen(revision: Int, onChanged: () -> Unit) {

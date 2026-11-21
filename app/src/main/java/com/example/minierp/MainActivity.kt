@@ -39,7 +39,7 @@ class MainActivity : ComponentActivity() {
         setContent {
             // نفرض اتجاه عربي RTL حتى لو لغة الجهاز إنجليزية
             androidx.compose.runtime.CompositionLocalProvider(
-                LocalLayoutDirection provides LayoutDirection.RTL
+                LocalLayoutDirection provides LayoutDirection.Rtl
             ) {
                 MiniERPTheme {
                     Surface(
