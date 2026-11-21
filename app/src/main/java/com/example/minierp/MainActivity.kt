@@ -59,11 +59,11 @@ private fun AppRoot() {
     val context = LocalContext.current
 
     // لون شريط الحالة يتبع الوضع (نهاري/ليلي)
-    LaunchedEffect(themeMode) {
+    val systemDark = androidx.compose.foundation.isSystemInDarkTheme()
+    LaunchedEffect(themeMode, systemDark) {
         val activity = context.findActivity() ?: return@LaunchedEffect
         val window = activity.window
-        val dark = themeMode == "dark" ||
-            (themeMode == "system" && androidx.compose.foundation.isSystemInDarkTheme())
+        val dark = themeMode == "dark" || (themeMode == "system" && systemDark)
         window.statusBarColor = android.graphics.Color.parseColor(
             if (dark) "#0E1412" else "#1F5A4D"
         )
